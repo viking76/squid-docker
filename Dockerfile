@@ -2,7 +2,7 @@ FROM debian:stretch as builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ENV SOURCEURL=http://www.squid-cache.org/Versions/v4/squid-4.8.tar.gz
+ENV SOURCEURL=http://www.squid-cache.org/Versions/v4/squid-4.13.tar.gz
 
 ENV builddeps=" \
     build-essential \
@@ -94,12 +94,19 @@ label maintainer="Jacob Alberty <jacob.alberty@foundigital.com>"
 ARG DEBIAN_FRONTEND=noninteractive
 
 COPY --from=builder /build/squid_0-1_amd64.deb /tmp/squid.deb
-
-RUN apt update \
- && apt -qy install libssl1.1 /tmp/squid.deb \
- && rm -rf /var/lib/apt/lists/*
+#Add ssl and certificate
+RUN apt update && \
+    apt -qy install libssl1.1 /tmp/squid.deb && \
+    apt -qy install ca-certificates && \
+  /usr/lib/squid/ssl_crtd -c -s /var/lib/ssl_db && \
+  mkdir -p /var/spool/squid /var/log/squid && \
+  chown nobody /var/spool/squid /var/log/squid /var/lib/ssl_db && \
+  chmod -R 777 /var/log/squid /var/spool/squid /var/lib/ssl_db && \
+  rm -rf /var/lib/apt/lists/*
 
 COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY squid.conf /conf/squid.conf
+
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
